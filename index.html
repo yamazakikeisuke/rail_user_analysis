@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>鉄道マップ（試作版）</title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.2/mapbox-gl-geocoder.min.js"></script>
+<link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v4.7.2/mapbox-gl-geocoder.css" type="text/css">
+<style>
+body { margin: 0; padding: 0; }
+#map { position: absolute; top: 0; bottom: 0; width: 100%; }
+</style>
+<link rel="stylesheet" href="./css/style.css">
+</head>
+<header id="header">
+    <div class="inner">
+      <p class="logo">
+        <div class="border-radius">全国輸送密度マップ(試作版)</div>
+      </p>
+      <img src="img/legend.png" width="160px" height="140px">
+    </div>    
+</header>
+<body>
+<div id="map"></div>
+<script>
+	mapboxgl.accessToken = 'pk.eyJ1IjoiemFraXlhbWEyOTE4IiwiYSI6ImNsYjAxc29saDBvZTYzcm41ZzN4dGxoYXEifQ.kJhTa_wdLo6s0Wj_Em5_RQ';
+    const map = new mapboxgl.Map({
+        style: 'mapbox://styles/zakiyama2918/clmhi5ce701ns01qzf5brcy0d',
+        center: [138.369877, 35.998751],
+        zoom: 7,
+        pitch: 45,
+        bearing: -17.6,
+        container: 'map',
+        antialias: true
+    });
+    // Add search box.
+    map.addControl(
+        new MapboxGeocoder({
+            accessToken: mapboxgl.accessToken,
+            mapboxgl: mapboxgl
+            })
+        );
+    //3D用の設定
+    map.on('load', () => {
+        // Insert the layer beneath any symbol layer.
+        const layers = map.getStyle().layers;
+        const labelLayerId = layers.find(
+            (layer) => layer.type === 'symbol' && layer.layout['text-field']
+        ).id;
+
+        // The 'building' layer in the Mapbox Streets
+        // vector tileset contains building height data
+        // from OpenStreetMap.
+        map.addLayer(
+            {
+                'id': 'add-3d-buildings',
+                'source': 'composite',
+                'source-layer': 'building',
+                'filter': ['==', 'extrude', 'true'],
+                'type': 'fill-extrusion',
+                'minzoom': 15,
+                'paint': {
+                    'fill-extrusion-color': '#aaa',
+
+                    // Use an 'interpolate' expression to
+                    // add a smooth transition effect to
+                    // the buildings as the user zooms in.
+                    'fill-extrusion-height': [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        15,
+                        0,
+                        15.05,
+                        ['get', 'height']
+                    ],
+                    'fill-extrusion-base': [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        15,
+                        0,
+                        15.05,
+                        ['get', 'min_height']
+                    ],
+                    'fill-extrusion-opacity': 0.6
+                }
+            },
+            labelLayerId
+        );
+    });
+    //路線データ
+    map.on('load', () => {
+        map.addSource('mapbox-terrain', {
+            type: 'vector',
+            // 'mapbox://の先にtilesetIDを書く
+            url: 'mapbox://zakiyama2918.3tyq3l7q'
+        });
+        map.addLayer(
+        {
+            'id': 'rail-data-2023_color',
+            'type': 'line',
+            'source': 'mapbox-terrain',
+            'source-layer': 'rail-df-2023',//Mapboxに登録したタイル名
+            'paint': {
+                "line-color": [
+                    "match",
+                    ["get", "color_base"],//"color_base"列のデータに合わせて色づけを変える
+                    -9999, "rgba(118,118,118,1)",
+                    -9000, "rgba(118,118,118,1)",
+                    1, "rgba(255,0,0,1)",
+                    2, "rgba(255,255,0,1)",
+                    3, "rgba(0,255,0,1)",
+                    4, "rgba(0,0,255,1)",
+                    "rgba(255,255,255,1)"
+                    ],
+                'line-width': 5
+            },
+        })
+    });
+      // クリック時の動作を書く
+    map.on('click', 'rail-data-2023_color', (e) => {
+    //console.log(e.features[0].properties)
+    new mapboxgl.Popup()
+    .setLngLat(e.lngLat)
+    .setHTML("<div style='border-bottom: solid 3px black;'><b>路線情報</b></div>"
+            + "<div class='underline'><b>事業者名：</b>" + e.features[0].properties.事業者名 + "</div>"
+            + "<div class='underline'><b>路線名：</b>" + e.features[0].properties.路線名 + "</div>"
+            + "<div class='underline'><b>2018年度：</b>" + e.features[0].properties["2018年度"] + "</div>"
+            + "<div class='underline'><b>2019年度：</b>" + e.features[0].properties["2019年度"] + "</div>"
+            + "<div class='underline'><b>2020年度：</b>" + e.features[0].properties["2020年度"] + "</div>"
+            + "<div class='underline'><b>2021年度：</b>" + e.features[0].properties["2021年度"] + "</div>"
+            + "<div class='underline'><b>2022年度：</b>" + e.features[0].properties["2022年度"] + "</div>"
+            )
+    .addTo(map);
+    });
+</script>
+
+</body>
+</html>
